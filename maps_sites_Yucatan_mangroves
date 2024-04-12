@@ -1,0 +1,15 @@
+library("ggplot2")
+library("sf")
+library("ggspatial")
+
+sites_mangs <- data.frame(longitude = c(-90.033894, -90.038505, -90.038881, -89.713415, -89.715441, -89.713282, 
+-88.870399, -88.87060, -88.867191, -88.062059, -88.060867, -88.061469),
+latitude = c(21.161721, 21.159950, 21.160996, 21.270454, 21.270070, 21.271519, 21.394799, 21.394917, 21.395088,
+21.590788, 21.591597, 21.599593))
+
+sites <- st_as_sf(sites_mangs, coords = c("longitude", "latitude"), 
+    crs = 4326, agr = "constant")
+
+hidrografia <- read_sf(dsn = "C:/.../hidro_INEGI", layer = "RH32Ba_ha")
+hidrografia_wgs84 <- st_transform(hidrografia, 4326)
+
