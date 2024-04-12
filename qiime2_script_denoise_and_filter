@@ -1,0 +1,151 @@
+#Import Demultiplexed Paired#
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path Dry \
+  --input-format CasavaOneEightSingleLanePerSampleDirFmt \
+  --output-path demux-paired-end-dry.qza
+  
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path Rainy \
+  --input-format CasavaOneEightSingleLanePerSampleDirFmt \
+  --output-path demux-paired-end-rainy.qza
+  
+qiime demux summarize \
+--i-data demux-paired-end-dry.qza \
+--o-visualization demux-paired-end-dryvis.qzv
+
+qiime demux summarize \
+--i-data demux-paired-end-rainy.qza \
+--o-visualization demux-paired-end-rainyvis.qzv
+
+#Denoise#
+qiime dada2 denoise-paired \
+  --i-demultiplexed-seqs demux-paired-end-dry.qza \
+  --p-trim-left-f 14 \
+  --p-trim-left-r 14 \
+  --p-trunc-len-f 234 \
+  --p-trunc-len-r 234 \
+  --o-table Denoised/denoised-dry-table.qza \
+  --o-representative-sequences Denoised/denoised-dry-rep-seqs.qza \
+  --o-denoising-stats Denoised/denoised-dry-denoistats.qza
+  
+qiime dada2 denoise-paired \
+  --i-demultiplexed-seqs demux-paired-end-rainy.qza \
+  --p-trim-left-f 14 \
+  --p-trim-left-r 14 \
+  --p-trunc-len-f 220 \
+  --p-trunc-len-r 220 \
+  --o-table denoised/denoised-rainy-table.qza \
+  --o-representative-sequences Denoised/denoised-rainy-rep-seqs.qza \
+  --o-denoising-stats Denoised/denoised-rainy-denoistats.qza
+  
+##Denoise Visualization/Summary
+qiime feature-table summarize \
+  --i-table denoised-dry-table.qza \
+  --o-visualization dry-tablevis.qzv \
+  --m-sample-metadata-file mapping_file_dry.txt
+
+qiime feature-table tabulate-seqs \
+  --i-data denoised-dry-rep-seqs.qza \
+  --o-visualization dry-rep-seqsvis.qzv
+
+qiime metadata tabulate \
+  --m-input-file denoised-dry-denoistats.qza \
+  --o-visualization dry-denoistatsvis.qzv
+  
+qiime feature-table summarize \
+  --i-table denoised-rainy-table.qza \
+  --o-visualization rainy-tablevis.qzv \
+  --m-sample-metadata-file mapping_file_rainy.txt
+
+qiime feature-table tabulate-seqs \
+  --i-data denoised-rainy-rep-seqs.qza \
+  --o-visualization rainy-rep-seqsvis.qzv
+
+qiime metadata tabulate \
+  --m-input-file denoised-rainy-denoistats.qza \
+  --o-visualization rainy-denoistatsvis.qzv
+
+#Taxa assignment
+qiime feature-classifier classify-sklearn \
+  --i-reads denoised-dry-rep-seqs.qza \
+  --i-classifier silva-138-99-nb-classifier.qza \
+  --o-classification dry-taxonomy.qza
+
+qiime metadata tabulate \
+  --m-input-file dry-taxonomy.qza \
+  --o-visualization dry-taxonomyvis.qzv
+
+#Alpha rarefaction curves
+qiime diversity alpha-rarefaction \
+  --i-table denoised-dry-table.qza \
+  --m-metadata-file mapping_file_dry.txt \
+  --o-visualization a_rarefaction_curves_dry_maxfreq.qzv \
+  --p-max-depth 128661
+
+qiime diversity alpha-rarefaction \
+  --i-table denoised-rainy-table.qza \
+  --m-metadata-file mapping_file_rainy.txt \
+  --o-visualization a_rarefaction_curves_rainy_maxfreq.qzv \
+  --p-max-depth 290518
+
+##Phylogeny
+qiime alignment mask \
+  --i-alignment dry-alignment.qza \
+  --o-masked-alignment dry-masked-alignedseqs.qza
+
+qiime phylogeny raxml \
+  --i-alignment dry-maskd-alignment.qza \
+  --o-tree dry-raxml-tree.qza
+
+qiime alignment mask \
+  --i-alignment rainy-alignment.qza \
+  --o-masked-alignment rainy-masked-alignedseqs.qza
+
+qiime phylogeny raxml \
+  --i-alignment rainy-maskd-alignment.qza \
+  --o-tree rainy-raxml-tree.qza
+
+##Merge dry + rainy
+qiime feature-table merge \
+  --i-tables denoised-dry-table.qza \
+  --i-tables denoised-rainy-table.qza \
+  --o-merged-table Merged/merged-table-mangs22.qza
+  
+qiime feature-table merge-seqs \
+  --i-data denoised-dry-rep-seqs.qza \
+  --i-data denoised-rainy-rep-seqs.qza \
+  --o-merged-data Merged/merged-rep-seqs-mangs22.qza
+
+#Summarize and export
+qiime tools export \
+  --input-path merged-table-mangs22.qza \
+  --output-path exported-asv-table
+
+biom convert -i exported-asv-table/feature-table.biom -o exported-asv-table/asv-table.tsv --to-tsv
+
+qiime tools export \
+  --input-path merged-rep-seqs-mangs22.qza \
+  --output-path exported-asvs
+  
+qiime feature-table tabulate-seqs \
+  --i-data merged-rep-seqs-mangs22.qza \
+  --o-visualization merged-rep-seqs-mangs22vis.qzv
+  
+qiime feature-table summarize \
+  --i-table merged-table-mangs22.qza \
+  --o-visualization merged-table-mangs22.qzv \
+  --m-sample-metadata-file mapping_file_merged.txt
+
+#Taxonomical assignation and export
+qiime feature-classifier classify-sklearn \
+  --i-reads Merged/merged-rep-seqs-mangs22.qza \
+  --i-classifier silva-138-99-nb-classifier.qza \
+  --o-classification Merged/merged-taxonomy.qza
+  
+qiime tools export \
+  --input-path merged-taxonomy.qza \
+  --output-path exported-asv-taxonomy
+
+mv exported-asv-taxonomy/taxonomy.tsv exported-asv-taxonomy/merged-silva-taxonomy-mangs22.tsv
