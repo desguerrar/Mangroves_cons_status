@@ -1,0 +1,142 @@
+libraries...
+
+#Cargar asv_table, tax_table, metadata, phy_tree. Crear objeto phyloseq#
+tax_table_mrgd_mangs22 <- read.table("C:/.../merged-silva-taxonomy-mangs22_1.tsv", header = T, sep = "\t", row.names = 1, fill = T)
+asv_table_mrgd_mangs22 <- read.table("C:/.../asv-table.tsv", header = T, sep = "\t", row.names = 1)
+metadata_mrgd_mangs22 <- read.table("C:/.../mapping_file_merged.txt", header = T, sep = "\t", row.names = 1)
+
+asv_table_mrgd_mangs22 <- as.matrix(asv_table_mrgd_mangs22)
+tax_table_mrgd_mangs22 <- as.matrix(tax_table_mrgd_mangs22)
+
+mangs22_mrgd_physeq <- phyloseq(otu_table(asv_table_mrgd_mangs22, taxa_are_rows = T), tax_table(tax_table_mrgd_mangs22))
+mangs22_mrgd_physeq@sam_data <- sample_data(metadata_mrgd_mangs22)
+
+fasttreephylo <- read.tree("C:/Users/Daniel Esguerra/Documents/UNAM/Secuencias tesis/merged_to_phyloseq/tree.nwk")
+phylo_tree <- phy_tree(fasttreephylo)
+mangs22_mrgd_physeq@phy_tree <- phylo_tree
+
+#Filtros básicos
+mangs22_mrgd_physeq <- prune_samples(sample_names(mangs22_mrgd_physeq) != "Mock", mangs22_mrgd_physeq)
+
+filtphyla2 <- c("Mitochondria", "Eukaryota")
+mangs22_mrgd_physeq1 <- subset_taxa(mangs22_mrgd_physeq, !Domain %in% filtphyla2)
+mangs22_mrgd_physeq1 <- subset_taxa(mangs22_mrgd_physeq, !Phylum %in% filtphyla2)
+mangs22_mrgd_physeq1 <- subset_taxa(mangs22_mrgd_physeq, !Class %in% filtphyla2)
+mangs22_mrgd_physeq1 <- subset_taxa(mangs22_mrgd_physeq, !Order %in% filtphyla2)
+mangs22_mrgd_physeq1 <- subset_taxa(mangs22_mrgd_physeq, !Family %in% filtphyla2)
+
+mangs22_mrgd_physeq2 <- mangs22_mrgd_physeq1 %>% subset_taxa(Domain != "Unassigned")
+
+#PCoA con unifrac (weighted) por lugar
+mangs22_mrgdphyseq_wunifrac <- ordinate(mangs22_mrgd_physeq2, method = "PCoA", distance = "wunifrac")
+evals <- mangs22_mrgdphyseq_wunifrac$values$Eigenvalues
+pord1 <- plot_ordination(mangs22_mrgd_physeq2, mangs22_mrgdphyseq_wunifrac, color = "Condition", shape = "Description") +
+  labs(col = "Condition") +
+  coord_fixed(sqrt(evals[2] / evals[1])) +
+  geom_point(size=2)
+pord1
+
+#Heat_map_t20_orders
+colnames(tax_table(mangs22_mrgd_physeq2)) <- c("Kingdom", "Phylum", "Class", "Order", "Family",  "Genus", "Species")
+mangs_av2 <- phyloseq_to_ampvis2(mangs22_mrgd_physeq2)
+amp_heatmap(mangs_av2, 
+            group_by = "Condition", 
+            facet_by = "Site", 
+            plot_values = TRUE,
+            tax_show = 20,
+            tax_aggregate = "Order",
+            tax_add = "Phylum",
+            plot_colorscale = "sqrt")
+
+#Diagrama_Venn
+venn_cond <- amp_venn(mangs_av2, group_by = "Condition", cut_a = 0.001, cut_f = 50, text_size = 3, normalise = T, detailed_output = T)
+venn_cond$plot
+
+#CCA UNIFRAC weighted con datos fisicoquimicos agua intersticial
+sample_sum_df <- data.frame(sum = sample_sums(mangs22_mrgd_physeq))
+bray_not_na <- phyloseq::distance(physeq = mangs22_mrgd_physeq, method = "unifrac", weighted=T)
+cap_ord <- ordinate(
+  physeq = mangs22_mrgd_physeq, 
+  method = "CCA",
+  distance = bray_not_na,
+  formula = ~ Salinity + Temperature + pH + Redox)
+cap_plot <- plot_ordination(
+  physeq = mangs22_mrgd_physeq, 
+  ordination = cap_ord, 
+  color = "Site", 
+  axes = c(1,2)
+) + 
+  aes(shape = Description) + 
+  geom_point(aes(shape= Description, color=Site), size = 3)
+#Arrows con info fisicoquimica  
+arrowmat <- vegan::scores(cap_ord, display = "bp")
+arrowdf <- data.frame(labels = rownames(arrowmat), arrowmat)
+
+arrow_map <- aes(xend = CCA1, 
+                 yend = CCA2, 
+                 x = 0, 
+                 y = 0, 
+                 shape = NULL, 
+                 color = NULL, 
+                 label = labels)
+
+label_map <- aes(x = 1.05* CCA1, 
+                 y = 1.15 * CCA2, 
+                 shape = NULL, 
+                 color = NULL, 
+                 label = labels)
+
+arrowhead = arrow(length = unit(0.02, "npc"))
+p <- cap_plot + 
+  geom_segment(
+    mapping = arrow_map, 
+    size = 0.8, 
+    data = arrowdf, 
+    color = "black", 
+    arrow = arrowhead
+  ) + 
+  geom_text(
+    mapping = label_map, 
+    size = 3,  
+    data = arrowdf, 
+    show.legend = FALSE,
+  ) + theme_classic()
+p
+
+#Permanova Fisicoquimicos
+perm1<-how(within = Within(type = "free"),
+	plots = Plots(type = "none"),
+	nperm = 999,
+	observed = TRUE)
+
+adonis2(formula = bray_not_na ~ Corg + Temperature + Redox + Salinity + pH, data = meta, permutations = perm1)
+
+##Análisis de Abundancia diferencial (lfcSE)
+
+mangs22_mrgd_physeq3 <- prune_samples(sample_sums(mangs22_mrgd_physeq2) > 500, mangs22_mrgd_physeq2)
+
+diagdds = phyloseq_to_deseq2(mangs22_mrgd_physeq3, ~ Condition)
+
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+geoMeans = apply(counts(diagdds), 1, gm_mean)
+diagdds1 = estimateSizeFactors(diagdds, geoMeans = geoMeans)
+diagdds1 = DESeq(diagdds1, fitType="local")
+resultsNames(diagdds1)
+res <- results(diagdds1, name="Condition_Degraded_vs_Conserved")
+resLFC <- lfcShrink(diagdds1, coef="Condition_Degraded_vs_Conserved", type="apeglm")
+head(resLFC)
+
+res = res[order(res$padj, na.last=NA), ]
+alpha = 0.01
+sigtab = res[(res$padj < alpha), ]
+sigtab = cbind(as(sigtab, "data.frame"), as(tax_table(mangs22_mrgd_physeq3)[rownames(sigtab), ], "matrix"))
+head(sigtab)
+summary(res)
+mcols(res)$description
+
+posigtab <- filter(sigtab, sigtab$log2FoldChange > 0.9 | sigtab$log2FoldChange < -0.9)
+posigtab = posigtab[, c("baseMean", "log2FoldChange", "lfcSE", "padj", "Phylum", "Class", "Order", "Family")]
+
+
