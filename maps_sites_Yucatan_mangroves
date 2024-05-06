@@ -1,7 +1,9 @@
 library("ggplot2")
 library("sf")
 library("ggspatial")
+library(ggpubr)
 
+#Coords Sampling Sites
 sites_mangs <- data.frame(longitude = c(-90.033894, -90.038505, -90.038881, -89.713415, -89.715441, -89.713282, 
 -88.870399, -88.87060, -88.867191, -88.062059, -88.060867, -88.061469),
 latitude = c(21.161721, 21.159950, 21.160996, 21.270454, 21.270070, 21.271519, 21.394799, 21.394917, 21.395088,
@@ -10,6 +12,93 @@ latitude = c(21.161721, 21.159950, 21.160996, 21.270454, 21.270070, 21.271519, 2
 sites <- st_as_sf(sites_mangs, coords = c("longitude", "latitude"), 
     crs = 4326, agr = "constant")
 
+#PY_Map_with_sites
+py_gadm <- read_sf(dsn = "C:/.../py_gadm36", layer = "py_gadm36")
+
+mangs_sites <- ggplot(data = py_gadm) +
+  geom_sf(color = "lightblue", fill = "antiquewhite1") +
+  geom_sf(data = sites, size = 3, shape = 23, fill = "darkred") +
+  geom_spatial_text(data = sites_mangs, aes(longitude, latitude, label = name), size = 3.5, position = position_nudge(y = 0.15)) +
+	annotation_scale(location = "bl", width_hint = 0.33) +
+  annotation_north_arrow(location = "tr", which_north = "true", 
+        pad_x = unit(0.3, "in"), pad_y = unit(0.3, "in"),
+        style = north_arrow_fancy_orienteering) +
+  coord_sf(xlim = c(-91, -86), ylim = c(19, 23), expand = T) +
+	xlab("Longitude") + ylab("Latitude") +
+  theme_light() + 
+  theme(panel.grid.major = element_line(colour = gray(0.5), linetype = "solid", size = 0.4),
+            panel.background = element_rect(fill = "lightblue")) +
+ggtitle("Yucatan Peninsula")
+
+#Water_bodies_shape
 hidrografia <- read_sf(dsn = "C:/.../hidro_INEGI", layer = "RH32Ba_ha")
 hidrografia_wgs84 <- st_transform(hidrografia, 4326)
 
+#Mangroves_shape
+mangs_mex_conabio <- read_sf(dsn = "C:/.../mx_mangs20gw_conabio", layer = "mx_man20gw")
+mangs_yuconabio <- st_crop(mangs_mex_conabio, xmin = -91, ymin = 19, xmax = -87, ymax = 22)
+
+#Zoom_on_sites
+progreso <- ggplot(data = py_gadm) +
+     geom_sf(color = "lightblue") +
+     annotation_spatial(hidrografia_wgs84, color = NA, fill = "lightblue") +
+	  geom_sf(data = sites$geometry[4:6], size = 3, shape = 23, fill = c("darkblue","red", "darkgreen")) +
+    geom_sf(data = mangs_yuconabio, color = NA, fill = "lightgreen", alpha = 0.2) +
+    coord_sf(xlim = c(-89.75, -89.69), ylim = c(21.25, 21.295), expand = FALSE) + 
+	  annotate("text", x = -89.745, y = 21.292, label= "Progreso", size = 4) +
+    annotation_scale(location = "bl", width_hint = 0.33) +
+    annotation_north_arrow(location = "tr", which_north = "true", 
+                         pad_x = unit(0.25, "in"), pad_y = unit(0.2, "in")) +
+     theme_linedraw() + 
+     theme(panel.grid.major = element_line(colour = NA, 
+         size = 0.5), panel.background = element_rect(fill = "lightblue"), 
+         panel.border = element_rect(fill = NA), axis.title = element_blank())
+
+sisal <- ggplot(data = py_gadm) +
+     geom_sf(color = "lightblue") +
+	 	 annotation_spatial(hidrografia_wgs84, color = NA, fill = "lightblue") +
+     geom_sf(data = sites$geometry[1:3], size = 3, shape = 23, fill = c("darkblue","red", "darkgreen")) +
+     geom_sf(data = mangs_yuconabio, color = NA, fill = "lightgreen", alpha = 0.2) +
+     coord_sf(xlim = c(-90.07, -89.998), ylim = c(21.14, 21.19), expand = FALSE) + 
+     annotate("text", x = -90.064, y = 21.185, label= "Sisal", size = 4) +
+     annotation_scale(location = "bl", width_hint = 0.33) +
+     annotation_north_arrow(location = "tr", which_north = "true", 
+                         pad_x = unit(0.25, "in"), pad_y = unit(0.2, "in")) +
+     theme_linedraw() + 
+     theme(panel.grid.major = element_line(colour = NA, 
+         size = 0.5), panel.background = element_rect(fill = "lightblue"), 
+         panel.border = element_rect(fill = NA), axis.title = element_blank())
+		 
+dzilam <- ggplot(data = py_gadm) +
+     geom_sf(color = "lightblue") +
+	 	 annotation_spatial(hidrografia_wgs84, color = NA, fill = "lightblue") +
+     geom_sf(data = sites$geometry[7:9], size = 3, shape = 23, fill = c("darkblue","red", "darkgreen")) +
+     geom_sf(data = mangs_yuconabio, color = NA, fill = "lightgreen", alpha = 0.2) +
+     coord_sf(xlim = c(-88.9, -88.82), ylim = c(21.37, 21.425), expand = FALSE) + 
+     annotate("text", x = -88.892, y = 21.421, label= "Dzilam", size = 4) +
+  annotation_scale(location = "bl", width_hint = 0.33) +
+  annotation_north_arrow(location = "tr", which_north = "true", 
+                         pad_x = unit(0.25, "in"), pad_y = unit(0.2, "in")) +
+    theme_linedraw() + 
+     theme(panel.grid.major = element_line(colour = NA, 
+         size = 0.5), panel.background = element_rect(fill = "lightblue"), 
+         panel.border = element_rect(fill = NA), axis.title = element_blank())
+		 
+lagartos <- ggplot(data = py_gadm) +
+     geom_sf(color = "lightblue") +
+     geom_sf(data = sites$geometry[10:12], size = 3, shape = 23, fill = c("darkblue","red", "darkgreen")) +
+     geom_sf(data = mangs_yuconabio, color = NA, fill = "lightgreen", alpha = 0.2) +
+	 	 annotation_spatial(hidrografia_wgs84, color = NA, fill = "lightblue") +
+     coord_sf(xlim = c(-88.135, -88.03), ylim = c(21.57, 21.64), expand = FALSE) + 
+     annotate("text", x = -88.12, y = 21.635, label= "Ria Lagartos", size = 4) +
+    annotation_scale(location = "bl", width_hint = 0.33) +
+    annotation_north_arrow(location = "tr", which_north = "true", 
+                         pad_x = unit(0.25, "in"), pad_y = unit(0.2, "in")) +
+     theme_linedraw() + 
+     theme(panel.grid.major = element_line(colour = NA, 
+         size = 0.5), panel.background = element_rect(fill = "lightblue"), 
+         panel.border = element_rect(fill = NA), axis.title = element_blank())
+
+#Composite_map
+arrng_sites <- ggarrange(sisal, progreso, dzilam, lagartos, ncol = 2, nrow = 3, align = "hv")
+ggarrange(mangs_sites, arrng_sites, widths = c(1,1), heights = c(2,1), align = "v")
