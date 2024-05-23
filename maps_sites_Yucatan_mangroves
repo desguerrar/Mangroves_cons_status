@@ -9,13 +9,15 @@ sites_mangs <- data.frame(longitude = c(-90.033894, -90.038505, -90.038881, -89.
 latitude = c(21.161721, 21.159950, 21.160996, 21.270454, 21.270070, 21.271519, 21.394799, 21.394917, 21.395088,
 21.590788, 21.591597, 21.599593))
 
+sites_mangs$name <- c("Sisal","Sisal","Sisal","Progreso","Progreso","Progreso","Dzilam","Dzilam","Dzilam","Ria Lagartos","Ria Lagartos","Ria Lagartos")
+
 sites <- st_as_sf(sites_mangs, coords = c("longitude", "latitude"), 
     crs = 4326, agr = "constant")
 
-#PY_Map_with_sites
-py_gadm <- read_sf(dsn = "C:/.../py_gadm36", layer = "py_gadm36")
+#GeoBoundaries_Map_with_sites
+shp_land <- read_sf(dsn = "C:/.../geoBoundaries-MEX-ADM1-all", layer = "geoBoundaries-MEX-ADM1")
 
-mangs_sites <- ggplot(data = py_gadm) +
+mangs_sites <- ggplot(data = shp_land) +
   geom_sf(color = "lightblue", fill = "antiquewhite1") +
   geom_sf(data = sites, size = 3, shape = 23, fill = "darkred") +
   geom_spatial_text(data = sites_mangs, aes(longitude, latitude, label = name), size = 3.5, position = position_nudge(y = 0.15)) +
@@ -39,7 +41,7 @@ mangs_mex_conabio <- read_sf(dsn = "C:/.../mx_mangs20gw_conabio", layer = "mx_ma
 mangs_yuconabio <- st_crop(mangs_mex_conabio, xmin = -91, ymin = 19, xmax = -87, ymax = 22)
 
 #Zoom_on_sites
-progreso <- ggplot(data = py_gadm) +
+progreso <- ggplot(data = shp_land) +
      geom_sf(color = "lightblue") +
      annotation_spatial(hidrografia_wgs84, color = NA, fill = "lightblue") +
 	  geom_sf(data = sites$geometry[4:6], size = 3, shape = 23, fill = c("darkblue","red", "darkgreen")) +
@@ -54,7 +56,7 @@ progreso <- ggplot(data = py_gadm) +
          size = 0.5), panel.background = element_rect(fill = "lightblue"), 
          panel.border = element_rect(fill = NA), axis.title = element_blank())
 
-sisal <- ggplot(data = py_gadm) +
+sisal <- ggplot(data = shp_land) +
      geom_sf(color = "lightblue") +
 	 	 annotation_spatial(hidrografia_wgs84, color = NA, fill = "lightblue") +
      geom_sf(data = sites$geometry[1:3], size = 3, shape = 23, fill = c("darkblue","red", "darkgreen")) +
@@ -69,7 +71,7 @@ sisal <- ggplot(data = py_gadm) +
          size = 0.5), panel.background = element_rect(fill = "lightblue"), 
          panel.border = element_rect(fill = NA), axis.title = element_blank())
 		 
-dzilam <- ggplot(data = py_gadm) +
+dzilam <- ggplot(data = shp_land) +
      geom_sf(color = "lightblue") +
 	 	 annotation_spatial(hidrografia_wgs84, color = NA, fill = "lightblue") +
      geom_sf(data = sites$geometry[7:9], size = 3, shape = 23, fill = c("darkblue","red", "darkgreen")) +
@@ -84,7 +86,7 @@ dzilam <- ggplot(data = py_gadm) +
          size = 0.5), panel.background = element_rect(fill = "lightblue"), 
          panel.border = element_rect(fill = NA), axis.title = element_blank())
 		 
-lagartos <- ggplot(data = py_gadm) +
+lagartos <- ggplot(data = shp_land) +
      geom_sf(color = "lightblue") +
      geom_sf(data = sites$geometry[10:12], size = 3, shape = 23, fill = c("darkblue","red", "darkgreen")) +
      geom_sf(data = mangs_yuconabio, color = NA, fill = "lightgreen", alpha = 0.2) +
